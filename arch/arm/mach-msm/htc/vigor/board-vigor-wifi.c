@@ -29,7 +29,7 @@ int vigor_wifi_get_mac_addr(unsigned char *buf);
 
 #define WLAN_SKB_BUF_NUM	16
 
-/* #define HW_OOB 1 */
+//#define HW_OOB 1
 
 static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
 
@@ -81,28 +81,28 @@ static struct resource vigor_wifi_resources[] = {
 		.start		= MSM_GPIO_TO_INT(VIGOR_GPIO_WIFI_IRQ),
 		.end		= MSM_GPIO_TO_INT(VIGOR_GPIO_WIFI_IRQ),
 #ifdef HW_OOB
-		.flags		  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE,
+		.flags          = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE,
 #else
-		.flags		  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+		.flags          = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 #endif
 	},
 };
 
 static struct wifi_platform_data vigor_wifi_control = {
-	.set_power	  = vigor_wifi_power,
-	.set_reset	  = vigor_wifi_reset,
+	.set_power      = vigor_wifi_power,
+	.set_reset      = vigor_wifi_reset,
 	.set_carddetect = vigor_wifi_set_carddetect,
 	.mem_prealloc   = vigor_wifi_mem_prealloc,
 	.get_mac_addr	= vigor_wifi_get_mac_addr,
-	.dot11n_enable  = 1,
+	//.dot11n_enable  = 1,
 };
 
 static struct platform_device vigor_wifi_device = {
-	.name		   = "bcm4329_wlan",
-	.id			 = 1,
+	.name           = "bcm4329_wlan",
+	.id             = 1,
 	.num_resources  = ARRAY_SIZE(vigor_wifi_resources),
-	.resource	   = vigor_wifi_resources,
-	.dev			= {
+	.resource       = vigor_wifi_resources,
+	.dev            = {
 		.platform_data = &vigor_wifi_control,
 	},
 };
@@ -126,9 +126,9 @@ static unsigned vigor_wifi_update_nvs(char *str)
 	if (ptr[NVS_DATA_OFFSET + len - 1] == 0)
 		len -= 1;
 
-	if (ptr[NVS_DATA_OFFSET + len - 1] != '\n') {
+	if (ptr[NVS_DATA_OFFSET + len -1] != '\n') {
 		len += 1;
-		ptr[NVS_DATA_OFFSET + len - 1] = '\n';
+		ptr[NVS_DATA_OFFSET + len -1] = '\n';
 	}
 
 	strcpy(ptr + NVS_DATA_OFFSET + len, str);
@@ -138,64 +138,64 @@ static unsigned vigor_wifi_update_nvs(char *str)
 }
 
 #ifdef HW_OOB
-static unsigned strip_nvs_param(char *param)
+static unsigned strip_nvs_param(char* param)
 {
-		unsigned char *nvs_data;
+	unsigned char *nvs_data;
 
-		unsigned param_len;
-		int start_idx, end_idx;
+	unsigned param_len;
+	int start_idx, end_idx;
 
-		unsigned char *ptr;
-		unsigned len;
+	unsigned char *ptr;
+	unsigned len;
 
-		if (!param)
-				return -EINVAL;
-		ptr = get_wifi_nvs_ram();
-		/* Size in format LE assumed */
-		memcpy(&len, ptr + NVS_LEN_OFFSET, sizeof(len));
+	if (!param)
+		return -EINVAL;
+	ptr = get_wifi_nvs_ram();
+	/* Size in format LE assumed */
+	memcpy(&len, ptr + NVS_LEN_OFFSET, sizeof(len));
 
-		/* the last bye in NVRAM is 0, trim it */
-		if (ptr[NVS_DATA_OFFSET + len - 1] == 0)
-				len -= 1;
+	/* the last bye in NVRAM is 0, trim it */
+	if (ptr[NVS_DATA_OFFSET + len -1] == 0)
+		len -= 1;
 
-		nvs_data = ptr + NVS_DATA_OFFSET;
+	nvs_data = ptr + NVS_DATA_OFFSET;
 
-		param_len = strlen(param);
+	param_len = strlen(param);
 
-		/* search param */
-		for (start_idx = 0; start_idx < len - param_len; start_idx++) {
-				if (memcmp(&nvs_data[start_idx], param, param_len) == 0) {
-						break;
-				}
+	/* search param */
+	for (start_idx = 0; start_idx < len - param_len; start_idx++) {
+		if (memcmp(&nvs_data[start_idx], param, param_len) == 0) {
+			break;
 		}
+	}
 
-		end_idx = 0;
-		if (start_idx < len - param_len) {
-				/* search end-of-line */
-				for (end_idx = start_idx + param_len; end_idx < len; end_idx++) {
-						if (nvs_data[end_idx] == '\n' || nvs_data[end_idx] == 0) {
-								break;
-						}
-				}
+	end_idx = 0;
+	if (start_idx < len - param_len) {
+		/* search end-of-line */
+		for (end_idx = start_idx + param_len; end_idx < len; end_idx++) {
+			if (nvs_data[end_idx] == '\n' || nvs_data[end_idx] == 0) {
+				break;
+			}
 		}
+	}
 
-		if (start_idx < end_idx) {
-				/* move the remain data forward */
-				for (; end_idx + 1 < len; start_idx++, end_idx++) {
-						nvs_data[start_idx] = nvs_data[end_idx+1];
-				}
-				len = len - (end_idx - start_idx + 1);
-				memcpy(ptr + NVS_LEN_OFFSET, &len, sizeof(len));
+	if (start_idx < end_idx) {
+		/* move the remain data forward */
+		for (; end_idx + 1 < len; start_idx++, end_idx++) {
+			nvs_data[start_idx] = nvs_data[end_idx+1];
 		}
-		return 0;
+		len = len - (end_idx - start_idx + 1);
+		memcpy(ptr + NVS_LEN_OFFSET, &len, sizeof(len));
+	}
+	return 0;
 }
 #endif
 
-#define WIFI_MAC_PARAM_STR	 "macaddr="
-#define WIFI_MAX_MAC_LEN	   17 /* XX:XX:XX:XX:XX:XX */
+#define WIFI_MAC_PARAM_STR     "macaddr="
+#define WIFI_MAX_MAC_LEN       17 /* XX:XX:XX:XX:XX:XX */
 
 static uint
-get_mac_from_wifi_nvs_ram(char *buf, unsigned int buf_len)
+get_mac_from_wifi_nvs_ram(char* buf, unsigned int buf_len)
 {
 	unsigned char *nvs_ptr;
 	unsigned char *mac_ptr;
@@ -214,7 +214,7 @@ get_mac_from_wifi_nvs_ram(char *buf, unsigned int buf_len)
 	if (mac_ptr) {
 		mac_ptr += strlen(WIFI_MAC_PARAM_STR);
 
-		/* skip vigoring space */
+		/* skip leading space */
 		while (mac_ptr[0] == ' ') {
 			mac_ptr++;
 		}
@@ -246,13 +246,13 @@ int vigor_wifi_get_mac_addr(unsigned char *buf)
 
 	mac_len = get_mac_from_wifi_nvs_ram(mac, WIFI_MAX_MAC_LEN);
 	if (mac_len > 0) {
-		/* Mac address to pattern */
-		sscanf(mac, "%02x:%02x:%02x:%02x:%02x:%02x",
+		//Mac address to pattern
+		sscanf( mac, "%02x:%02x:%02x:%02x:%02x:%02x",
 		&macpattern[0], &macpattern[1], &macpattern[2],
 		&macpattern[3], &macpattern[4], &macpattern[5]
 		);
 
-		for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		for(i = 0; i < ETHER_ADDR_LEN; i++) {
 			ether_mac_addr[i] = (u8)macpattern[i];
 		}
 	}
@@ -260,7 +260,7 @@ int vigor_wifi_get_mac_addr(unsigned char *buf)
 	memcpy(buf, ether_mac_addr, sizeof(ether_mac_addr));
 
 	printk("vigor_wifi_get_mac_addr = %02x %02x %02x %02x %02x %02x \n",
-		ether_mac_addr[0], ether_mac_addr[1], ether_mac_addr[2], ether_mac_addr[3], ether_mac_addr[4], ether_mac_addr[5]);
+		ether_mac_addr[0],ether_mac_addr[1],ether_mac_addr[2],ether_mac_addr[3],ether_mac_addr[4],ether_mac_addr[5]);
 
 	return 0;
 }

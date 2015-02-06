@@ -11,7 +11,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -21,6 +20,7 @@
 #include <linux/err.h>
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include <asm/gpio.h>
 #include <asm/io.h>
@@ -29,131 +29,70 @@
 #include <mach/htc_pwrsink.h>
 
 #include <asm/mach/mmc.h>
+#include <mach/msm_iomap.h>
+#include <linux/mfd/pmic8058.h>
 
 #include "devices.h"
 #include "board-vigor.h"
-#include "proc_comm.h"
-#include <mach/msm_iomap.h>
-#include <linux/mfd/pmic8058.h>
-#include <mach/htc_sleep_clk.h>
-#include "mpm.h"
+#include <mach/proc_comm.h>
+#include <mach/mpm.h>
+
+#ifdef CONFIG_WIMAX_SERIAL_MSM
+#include "board-common-wimax.h"
+#include <mach/msm_serial_wimax.h>
+#include <linux/irq.h>
+
+#define MSM_GSBI3_PHYS		0x16200000
+#define MSM_UART3_PHYS 		(MSM_GSBI3_PHYS + 0x40000)
+#define INT_UART3_IRQ		GSBI3_UARTDM_IRQ
+#endif
+
 #include <linux/irq.h>
 
 #include <mach/rpm.h>
 #include <mach/rpm-regulator.h>
 
-#include "mpm.h"
 #include "rpm_resources.h"
 
 #if 0
 static int msm_sdcc_cfg_mpm_sdiowakeup(struct device *dev, unsigned mode)
 {
-	   struct platform_device *pdev;
-	   enum msm_mpm_pin pin;
-		int ret = 0;
+       struct platform_device *pdev;
+       enum msm_mpm_pin pin;
+        int ret = 0;
 
-	   pdev = container_of(dev, struct platform_device, dev);
+       pdev = container_of(dev, struct platform_device, dev);
 
-	   /* Only SDCC4 slot connected to WLAN chip has wakeup capability */
-	   if (pdev->id == 4)
-			   pin = MSM_MPM_PIN_SDC4_DAT1;
-	   else
-			   return -EINVAL;
+       /* Only SDCC4 slot connected to WLAN chip has wakeup capability */
+       if (pdev->id == 4)
+               pin = MSM_MPM_PIN_SDC4_DAT1;
+       else
+               return -EINVAL;
 
-		switch (mode) {
-		case SDC_DAT1_DISABLE:
-				ret = msm_mpm_enable_pin(pin, 0);
-				break;
-		case SDC_DAT1_ENABLE:
-				ret = msm_mpm_set_pin_type(pin, IRQ_TYPE_LEVEL_LOW);
-				ret = msm_mpm_enable_pin(pin, 1);
-				break;
-		case SDC_DAT1_ENWAKE:
-				ret = msm_mpm_set_pin_wake(pin, 1);
-				break;
-		case SDC_DAT1_DISWAKE:
-				ret = msm_mpm_set_pin_wake(pin, 0);
-				break;
-		default:
-				ret = -EINVAL;
-				break;
-		}
-		return ret;
+        switch (mode) {
+        case SDC_DAT1_DISABLE:
+                ret = msm_mpm_enable_pin(pin, 0);
+                break;
+        case SDC_DAT1_ENABLE:
+                ret = msm_mpm_set_pin_type(pin, IRQ_TYPE_LEVEL_LOW);
+                ret = msm_mpm_enable_pin(pin, 1);
+                break;
+        case SDC_DAT1_ENWAKE:
+                ret = msm_mpm_set_pin_wake(pin, 1);
+                break;
+        case SDC_DAT1_DISWAKE:
+                ret = msm_mpm_set_pin_wake(pin, 0);
+                break;
+        default:
+                ret = -EINVAL;
+                break;
+        }
+        return ret;
 }
 #endif
 
+//#include <linux/module.h>
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2);
-
-/* ---- PM QOS ---- */
-static struct msm_rpmrs_level msm_rpmrs_levels[] = {
-	{
-		MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT,
-		MSM_RPMRS_LIMITS(ON, ACTIVE, MAX, ACTIVE),
-		true,
-		1, 8000, 100000, 1,
-	},
-
-	{
-		MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE,
-		MSM_RPMRS_LIMITS(ON, ACTIVE, MAX, ACTIVE),
-		true,
-		1500, 5000, 60100000, 3000,
-	},
-
-	{
-		MSM_PM_SLEEP_MODE_POWER_COLLAPSE,
-		MSM_RPMRS_LIMITS(ON, ACTIVE, MAX, ACTIVE),
-		false,
-		1800, 5000, 60350000, 3500,
-	},
-	{
-		MSM_PM_SLEEP_MODE_POWER_COLLAPSE,
-		MSM_RPMRS_LIMITS(OFF, ACTIVE, MAX, ACTIVE),
-		false,
-		3800, 4500, 65350000, 5500,
-	},
-
-	{
-		MSM_PM_SLEEP_MODE_POWER_COLLAPSE,
-		MSM_RPMRS_LIMITS(ON, HSFS_OPEN, MAX, ACTIVE),
-		false,
-		2800, 2500, 66850000, 4800,
-	},
-
-	{
-		MSM_PM_SLEEP_MODE_POWER_COLLAPSE,
-		MSM_RPMRS_LIMITS(OFF, HSFS_OPEN, MAX, ACTIVE),
-		false,
-		4800, 2000, 71850000, 6800,
-	},
-
-	{
-		MSM_PM_SLEEP_MODE_POWER_COLLAPSE,
-		MSM_RPMRS_LIMITS(OFF, HSFS_OPEN, ACTIVE, RET_HIGH),
-		false,
-		6800, 500, 75850000, 8800,
-	},
-
-	{
-		MSM_PM_SLEEP_MODE_POWER_COLLAPSE,
-		MSM_RPMRS_LIMITS(OFF, HSFS_OPEN, RET_HIGH, RET_LOW),
-		false,
-		7800, 0, 76350000, 9800,
-	},
-};
-
-static uint32_t msm_rpm_get_swfi_latency(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(msm_rpmrs_levels); i++) {
-		if (msm_rpmrs_levels[i].sleep_mode ==
-			MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT)
-			return msm_rpmrs_levels[i].latency_us;
-	}
-
-	return 0;
-}
 
 extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat);
 
@@ -161,24 +100,36 @@ extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat)
 /* ---- WIFI ---- */
 
 static uint32_t wifi_on_gpio_table[] = {
+	//GPIO_CFG(116, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA), /* DAT3 */
+	//GPIO_CFG(117, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA), /* DAT2 */
+	//GPIO_CFG(118, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA), /* DAT1 */
+	//GPIO_CFG(119, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA), /* DAT0 */
+	//GPIO_CFG(111, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_8MA), /* CMD */
+	//GPIO_CFG(110, 1, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA), /* CLK */
 	GPIO_CFG(VIGOR_GPIO_WIFI_IRQ, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA), /* WLAN IRQ */
 };
 
 static uint32_t wifi_off_gpio_table[] = {
+	//GPIO_CFG(116, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA), /* DAT3 */
+	//GPIO_CFG(117, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA), /* DAT2 */
+	//GPIO_CFG(118, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA), /* DAT1 */
+	//GPIO_CFG(119, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA), /* DAT0 */
+	//GPIO_CFG(111, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA), /* CMD */
+	//GPIO_CFG(110, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA), /* CLK */
 	GPIO_CFG(VIGOR_GPIO_WIFI_IRQ, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_4MA), /* WLAN IRQ */
 };
 
 static void config_gpio_table(uint32_t *table, int len)
 {
-		int n, rc;
-		for (n = 0; n < len; n++) {
-				rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
-				if (rc) {
-						pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
-								__func__, table[n], rc);
-						break;
-				}
-		}
+        int n, rc;
+        for (n = 0; n < len; n++) {
+                rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
+                if (rc) {
+                        pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
+                                __func__, table[n], rc);
+                        break;
+                }
+        }
 }
 
 /* BCM4329 returns wrong sdio_vsn(1) when we read cccr,
@@ -217,24 +168,26 @@ static unsigned int vigor_wifi_status(struct device *dev)
 	return vigor_wifi_cd;
 }
 
-static unsigned int vigor_wifislot_type = MMC_TYPE_SDIO_WIFI;
+static u32 vigor_wifi_setup_power(struct device *dv, unsigned int vdd)
+{
+  return 0;
+}
+
 static struct mmc_platform_data vigor_wifi_data = {
-		.ocr_mask			   = MMC_VDD_28_29,
-		.status				 = vigor_wifi_status,
-		.register_status_notify = vigor_wifi_status_register,
-		.embedded_sdio		  = &vigor_wifi_emb_data,
-		.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
-		.slot_type = &vigor_wifislot_type,
-		.msmsdcc_fmin   = 400000,
-		.msmsdcc_fmid   = 24000000,
-		.msmsdcc_fmax   = 48000000,
-		.nonremovable   = 0,
-	.pclk_src_dfab	= 1,
-	/*
+        .ocr_mask               = MMC_VDD_28_29,
+        .status                 = vigor_wifi_status,
+        .register_status_notify = vigor_wifi_status_register,
+        .embedded_sdio          = &vigor_wifi_emb_data,
+        .mmc_bus_width  = MMC_CAP_4_BIT_DATA,
+        .msmsdcc_fmin   = 400000,
+        .msmsdcc_fmid   = 24000000,
+        .msmsdcc_fmax   = 48000000,
+        .nonremovable   = 1,
+	.translate_vdd  = vigor_wifi_setup_power,
+	// .pclk_src_dfab	= 1,
 	//.cfg_mpm_sdiowakeup = msm_sdcc_cfg_mpm_sdiowakeup,
 	// HTC_WIFI_MOD, temp remove dummy52
 	//.dummy52_required = 1,
-	*/
 };
 
 
@@ -257,18 +210,18 @@ int vigor_wifi_power(int on)
 	printk(KERN_INFO "%s: %d\n", __func__, on);
 
 	if (on) {
-		/* SDC4_CMD_PULL = Pull Up, SDC4_DATA_PULL = Pull up */
+		//SDC4_CMD_PULL = Pull Up, SDC4_DATA_PULL = Pull up
 		writel(0x1FDB, SDC4_HDRV_PULL_CTL_ADDR);
 		config_gpio_table(wifi_on_gpio_table,
 				  ARRAY_SIZE(wifi_on_gpio_table));
 	} else {
-		/* SDC4_CMD_PULL = Pull Down, SDC4_DATA_PULL = Pull Down */
+		//SDC4_CMD_PULL = Pull Down, SDC4_DATA_PULL = Pull Down
 		writel(0x0BDB, SDC4_HDRV_PULL_CTL_ADDR);
 		config_gpio_table(wifi_off_gpio_table,
 				  ARRAY_SIZE(wifi_off_gpio_table));
 	}
-	htc_wifi_bt_sleep_clk_ctl(on, ID_WIFI);
-	mdelay(1);	/* Delay 1 ms, Recommand by Hardware */
+	//htc_wifi_bt_sleep_clk_ctl(on, ID_WIFI);
+	mdelay(1);//Delay 1 ms, Recommand by Hardware
 	gpio_set_value(VIGOR_GPIO_WIFI_SHUTDOWN_N, on); /* WIFI_SHUTDOWN */
 
 	mdelay(120);
@@ -282,7 +235,7 @@ int vigor_wifi_reset(int on)
 	return 0;
 }
 
-int __init vigor_init_mmc()
+int __init vigor_init_wifi_mmc(void)
 {
 	uint32_t id;
 	wifi_status_cb = NULL;
@@ -295,8 +248,6 @@ int __init vigor_init_mmc()
 	gpio_tlmm_config(id, 0);
 	gpio_set_value(VIGOR_GPIO_WIFI_SHUTDOWN_N, 0);
 
-	/* PM QoS for wifi*/
-	vigor_wifi_data.swfi_latency = msm_rpm_get_swfi_latency();
 	msm_add_sdcc(4, &vigor_wifi_data);
 
 	return 0;

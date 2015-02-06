@@ -8,4 +8,4 @@ config MACH_VIGOR
         select REMOVE_SMI_2X_CLK
 	bool "HTC Vigor"
 	help
-	  Support for the HTC Vigor device.
+	  Support for the HTC VIGOR device.
