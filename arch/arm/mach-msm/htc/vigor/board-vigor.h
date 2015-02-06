@@ -31,9 +31,9 @@
 #define MSM_SMI_SIZE         0x4000000
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
-#define MSM_FB_PRIM_BUF_SIZE (960 * 544 * 4 * 3) /* 4 bpp x 3 pages */
+#define MSM_FB_PRIM_BUF_SIZE	(1280 * 720 * 4 * 3) /* 4 bpp x 3 pages */
 #else
-#define MSM_FB_PRIM_BUF_SIZE (960 * 544 * 4 * 2) /* 4 bpp x 2 pages */
+#define MSM_FB_PRIM_BUF_SIZE	(1280 * 720 * 4 * 2) /* 4 bpp x 2 pages */
 #endif
 
 
@@ -60,23 +60,23 @@
 #define MSM_FB_OVERLAY1_WRITEBACK_SIZE (0)
 #endif  /* CONFIG_FB_MSM_OVERLAY1_WRITEBACK */
 
-#define PHY_BASE_ADDR1       0x48000000
-#define SIZE_ADDR1           0x28000000
+#define PHY_BASE_ADDR1       0x48800000
+#define SIZE_ADDR1           0x2FA00000
 
-#define MSM_ION_MM_FW_SIZE   0x200000
-#define MSM_ION_MM_SIZE      0x3D00000
+#define MSM_ION_WB_SIZE      0x800000 /* 8MB */
+#define MSM_ION_SF_SIZE      0x4000000 /* 64MB */
+#define MSM_ION_MM_FW_SIZE   0x200000 /* 2MB */
+#define MSM_ION_MM_SIZE      0x3400000 /* 52MB */
 #define MSM_ION_MFC_SIZE     0x100000
-#define MSM_ION_SF_SIZE      0x2A00000
-#define MSM_ION_WB_SIZE      0x500000
 #define MSM_ION_AUDIO_SIZE   0x4CF000
 
 #define MSM_ION_HEAP_NUM     7
 
-#define MSM_ION_MM_FW_BASE   0x38000000
-#define MSM_ION_MM_BASE      0x38200000
-#define MSM_ION_MFC_BASE     0x3BF00000
-#define MSM_ION_SF_BASE      0x40400000
-#define MSM_ION_WB_BASE      0x45C00000
+#define MSM_ION_MM_FW_BASE   0x78200000
+#define MSM_ION_MM_BASE      0x7CC00000
+#define MSM_ION_MFC_BASE     0x40400000
+#define MSM_ION_SF_BASE      0x78C00000
+#define MSM_ION_WB_BASE      0x78400000
 /*** END Memory map ***/
 
 /* GPIO definition */
